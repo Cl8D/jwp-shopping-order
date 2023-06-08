@@ -16,7 +16,7 @@ class CouponDiscountRateTest {
         assertDoesNotThrow(() -> CouponDiscountRate.create(discountRate));
     }
 
-    @ParameterizedTest(name = "5 미만, 90 초과의 기간이 들어오면 예외가 발생한다.")
+    @ParameterizedTest(name = "5 미만, 90 초과의 할인율이 들어오면 예외가 발생한다.")
     @ValueSource(ints = {4, 91})
     void create_fail(final int discountRate) {
         assertThatThrownBy(() -> CouponDiscountRate.create(discountRate))
