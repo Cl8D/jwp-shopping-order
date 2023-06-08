@@ -25,8 +25,8 @@ class HalfRefundPolicyTest {
         halfRefundPolicy = new HalfRefundPolicy();
     }
 
-    @ParameterizedTest(name = "주문한 지 7일 이내인지 확인한다.")
-    @CsvSource(value = {"0:true", "6:true", "7:false", "8:false"}, delimiter = ':')
+    @ParameterizedTest(name = "주문한 지 3일 이상, 7일 이내인지 확인한다.")
+    @CsvSource(value = {"3:true", "6:true", "7:false", "8:false"}, delimiter = ':')
     void isAvailable(final int day, final boolean expected) {
         // given
         final Member 져니 = Member.create(1L, "journey", EncryptedPassword.create("password"));

@@ -1,5 +1,6 @@
 package cart.domain.refund;
 
+import static cart.domain.refund.RefundLimitDate.FULL_REFUND;
 import static cart.domain.refund.RefundLimitDate.HALF_REFUND;
 
 import cart.domain.order.Order;
@@ -17,7 +18,9 @@ public class HalfRefundPolicy implements RefundPolicy {
 
     @Override
     public boolean isAvailable(final Order order, final LocalDateTime currentTime) {
-        return currentTime.isBefore(order.getOrderedAt().plusDays(HALF_REFUND.getDay()));
+        final LocalDateTime orderedAt = order.getOrderedAt();
+        return currentTime.isAfter(orderedAt.plusDays(FULL_REFUND.getDay())) &&
+            currentTime.isBefore(orderedAt.plusDays(HALF_REFUND.getDay()));
     }
 
     @Override

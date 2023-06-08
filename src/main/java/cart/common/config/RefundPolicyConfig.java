@@ -10,10 +10,7 @@ import org.springframework.context.annotation.Configuration;
 public class RefundPolicyConfig {
 
     @Bean
-    public RefundPolicyComposite refundPolicyComposite(
-        final RefundPolicy fullRefundPolicy, final RefundPolicy halfRefundPolicy) {
-        return new RefundPolicyComposite(
-            List.of(fullRefundPolicy, halfRefundPolicy)
-        );
+    public RefundPolicyComposite refundPolicyComposite(final List<RefundPolicy> refundPolicies) {
+        return new RefundPolicyComposite(refundPolicies);
     }
 }
