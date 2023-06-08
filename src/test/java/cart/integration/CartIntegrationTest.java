@@ -4,16 +4,20 @@ import static cart.exception.ErrorCode.CART_ALREADY_ADD;
 import static cart.exception.ErrorCode.CART_NOT_FOUND;
 import static cart.exception.ErrorCode.PRODUCT_NOT_FOUND;
 import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.equalTo;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.hamcrest.Matchers.is;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 import cart.application.dto.cartitem.CartItemQuantityUpdateRequest;
 import cart.application.dto.cartitem.CartRequest;
+import cart.application.dto.cartitem.CartResponse;
 import cart.application.dto.member.MemberJoinRequest;
 import cart.application.dto.member.MemberLoginRequest;
 import cart.application.dto.product.ProductRequest;
+import cart.exception.ErrorResponse;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -53,16 +57,20 @@ public class CartIntegrationTest extends IntegrationTest {
         final CartRequest 장바구니_저장_요청 = new CartRequest(1L);
 
         // expected
-        given()
+        final ErrorResponse 에러_응답 = given()
             .contentType(MediaType.APPLICATION_JSON_VALUE)
             .auth().preemptive().basic(져니_로그인_요청.getName(), 져니_로그인_요청.getPassword())
             .body(장바구니_저장_요청)
             .when()
             .post("/cart-items")
             .then()
-            .statusCode(HttpStatus.NOT_FOUND.value())
-            .body("errorCode", equalTo(PRODUCT_NOT_FOUND.name()))
-            .body("errorMessage", equalTo("상품이 존재하지 않습니다."));
+            .statusCode(NOT_FOUND.value())
+            .extract()
+            .as(ErrorResponse.class);
+
+        assertThat(에러_응답)
+            .extracting(ErrorResponse::getErrorCode, ErrorResponse::getErrorMessage)
+            .containsExactly(PRODUCT_NOT_FOUND, "상품이 존재하지 않습니다.");
     }
 
     @Test
@@ -78,7 +86,7 @@ public class CartIntegrationTest extends IntegrationTest {
 
         // expected
         final CartRequest 이미_존재하는_상품_장바구니_저장_요청 = new CartRequest(1L);
-        given()
+        final ErrorResponse 에러_응답 = given()
             .contentType(MediaType.APPLICATION_JSON_VALUE)
             .auth().preemptive().basic(져니_로그인_요청.getName(), 져니_로그인_요청.getPassword())
             .body(이미_존재하는_상품_장바구니_저장_요청)
@@ -86,8 +94,12 @@ public class CartIntegrationTest extends IntegrationTest {
             .post("/cart-items")
             .then()
             .statusCode(HttpStatus.BAD_REQUEST.value())
-            .body("errorCode", equalTo(CART_ALREADY_ADD.name()))
-            .body("errorMessage", equalTo("장바구니에 해당 상품이 이미 등록되어 있습니다."));
+            .extract()
+            .as(ErrorResponse.class);
+
+        assertThat(에러_응답)
+            .extracting(ErrorResponse::getErrorCode, ErrorResponse::getErrorMessage)
+            .containsExactly(CART_ALREADY_ADD, "장바구니에 해당 상품이 이미 등록되어 있습니다.");
     }
 
     @Test
@@ -101,25 +113,27 @@ public class CartIntegrationTest extends IntegrationTest {
         장바구니_상품의_수량을_변경한다(10, 져니_로그인_요청);
 
         // expected
-        given()
+        final List<CartResponse> 장바구니_응답 = given()
             .auth().preemptive().basic(져니_로그인_요청.getName(), 져니_로그인_요청.getPassword())
             .when()
             .get("/cart-items")
             .then()
             .statusCode(HttpStatus.OK.value())
-            .body("size", is(2))
-            .body("[0].id", equalTo(1))
-            .body("[0].quantity", equalTo(10))
-            .body("[0].product.id", equalTo(1))
-            .body("[0].product.name", equalTo("치킨"))
-            .body("[0].product.price", equalTo(10000))
-            .body("[0].product.imageUrl", equalTo("http://example.com/chicken.jpg"))
-            .body("[1].id", equalTo(2))
-            .body("[1].quantity", equalTo(1))
-            .body("[1].product.id", equalTo(2))
-            .body("[1].product.name", equalTo("피자"))
-            .body("[1].product.price", equalTo(15000))
-            .body("[1].product.imageUrl", equalTo("http://example.com/pizza.jpg"));
+            .extract()
+            .jsonPath()
+            .getList(".", CartResponse.class);
+
+        assertThat(장바구니_응답).hasSize(2);
+        assertThat(장바구니_응답)
+            .extracting(CartResponse::getId, CartResponse::getQuantity,
+                cartResponse -> cartResponse.getProduct().getId(),
+                cartResponse -> cartResponse.getProduct().getName(),
+                cartResponse -> cartResponse.getProduct().getPrice(),
+                cartResponse -> cartResponse.getProduct().getImageUrl())
+            .containsExactly(
+                tuple(1L, 10, 1L, "치킨", 10000, "http://example.com/chicken.jpg"),
+                tuple(2L, 1, 2L, "피자", 15000, "http://example.com/pizza.jpg")
+            );
     }
 
     @Test
@@ -142,8 +156,7 @@ public class CartIntegrationTest extends IntegrationTest {
             .body(장바구니_수량_수정_요청)
             .patch("/cart-items/{cartItemId}", 1)
             .then()
-            .statusCode(HttpStatus.OK.value())
-            .extract();
+            .statusCode(HttpStatus.OK.value());
     }
 
     @Test
@@ -212,8 +225,7 @@ public class CartIntegrationTest extends IntegrationTest {
             .body(장바구니_수량_수정_요청)
             .patch("/cart-items/{cartItemId}", 1)
             .then()
-            .statusCode(FORBIDDEN.value())
-            .extract();
+            .statusCode(FORBIDDEN.value());
     }
 
     @Test
@@ -271,8 +283,7 @@ public class CartIntegrationTest extends IntegrationTest {
             .when()
             .delete("/cart-items/{cartItemId}", 1)
             .then()
-            .statusCode(FORBIDDEN.value())
-            .extract();
+            .statusCode(FORBIDDEN.value());
     }
 
     @Test
@@ -294,7 +305,8 @@ public class CartIntegrationTest extends IntegrationTest {
             .auth().preemptive().basic(져니_로그인_요청.getName(), 져니_로그인_요청.getPassword())
             .when()
             .delete("/cart-items?ids=1,2")
-            .then();
+            .then()
+            .statusCode(HttpStatus.NO_CONTENT.value());
 
         // then
         given()
@@ -318,15 +330,19 @@ public class CartIntegrationTest extends IntegrationTest {
         장바구니_상품_저장(져니_로그인_요청, 치킨_장바구니_저장_요청);
 
         // when
-        given()
+        final ErrorResponse 에러_응답 = given()
             .contentType(MediaType.APPLICATION_JSON_VALUE)
             .auth().preemptive().basic(져니_로그인_요청.getName(), 져니_로그인_요청.getPassword())
             .when()
             .delete("/cart-items?ids=2,3")
             .then()
             .statusCode(NOT_FOUND.value())
-            .body("errorCode", equalTo(CART_NOT_FOUND.name()))
-            .body("errorMessage", equalTo("장바구니 정보를 찾을 수 없습니다."));
+            .extract()
+            .as(ErrorResponse.class);
+
+        assertThat(에러_응답)
+            .extracting(ErrorResponse::getErrorCode, ErrorResponse::getErrorMessage)
+            .containsExactly(CART_NOT_FOUND, "장바구니 정보를 찾을 수 없습니다.");
     }
 
     private void 사용자를_저장한다() {
